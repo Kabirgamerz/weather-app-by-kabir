@@ -1,552 +1,560 @@
 /* ============================================
-   SKYCAST — Main JavaScript File
-   js/script.js
-
-   FEATURES:
-   1.  API Configuration  — OpenWeatherMap setup
-   2.  fetchWeather()     — fetch() with async/await
-   3.  fetchForecast()    — 5-day forecast API call
-   4.  renderWeather()    — inject data into DOM
-   5.  renderForecast()   — build forecast cards
-   6.  Error Handling     — invalid city message
-   7.  Loading Spinner    — shown while fetching
-   8.  Date & Time        — live clock display
-   9.  Weather Themes     — dynamic background
-   10. Weather Icons      — emoji mapped to codes
-   11. Geolocation        — detect user location
-   12. Unit Toggle        — °C ↔ °F conversion
-   13. Mobile Menu        — hamburger toggle
+   ATMOSFERA — script.js
+   Features:
+   - Custom cursor + trail
+   - Canvas particle system (weather-aware)
+   - 3D orb color transitions
+   - API fetch with async/await
+   - 5-day forecast
+   - Geolocation
+   - °C/°F toggle
+   - Error handling + loading
+   - Live clock
+   - Dynamic weather worlds
    ============================================ */
 
-
-/* ==================================================
-   1. API CONFIGURATION
-   ================================================
-
-   HOW TO GET YOUR FREE API KEY:
-   1. Go to https://openweathermap.org
-   2. Click "Sign In" → "Create an Account" (free)
-   3. After signing in, go to your profile → "My API Keys"
-   4. Copy your default key (or create a new one)
-   5. Replace "YOUR_API_KEY_HERE" below with your key
-
-   The free plan allows:
-   - 60 API calls per minute
-   - Current weather endpoint
-   - 5-day / 3-hour forecast endpoint
-   - No credit card required
-
-   ================================================ */
-const API_KEY  = "bd5e378503939ddaee76f12ad7a97608";   /* ← PASTE YOUR KEY HERE */
+const API_KEY  = "bd5e378503939ddaee76f12ad7a97608"; /* ← paste your OpenWeatherMap key */
 const BASE_URL = "https://api.openweathermap.org/data/2.5";
 
+let currentUnit = "metric";
+let lastCity    = "";
+let lastData    = null;
 
-/* ==================================================
-   2. STATE — tracks current data
-   ================================================== */
-let currentUnit = "metric";   /* "metric" = °C  |  "imperial" = °F */
-let lastCity    = "";         /* remember last searched city */
-let lastWeatherData = null;   /* cache last API response for unit toggle */
+/* ============================================
+   CUSTOM CURSOR
+   ============================================ */
+function initCursor() {
+  const cursor      = document.getElementById('cursor');
+  const cursorTrail = document.getElementById('cursorTrail');
+  if (!cursor || !cursorTrail) return;
 
+  let mouseX = 0, mouseY = 0;
+  let trailX = 0, trailY = 0;
 
-/* ==================================================
-   3. FETCH CURRENT WEATHER
-   ================================================
+  document.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    cursor.style.left = mouseX + 'px';
+    cursor.style.top  = mouseY + 'px';
+  });
 
-   HOW API FETCH WORKS (step by step):
-   ─────────────────────────────────
-   a) Build the URL with city name + API key + units
-   b) Call fetch() — this sends an HTTP GET request
-   c) await means "wait for the response before continuing"
-   d) .json() converts the response text → JavaScript object
-   e) Check if API returned an error (status 404 = city not found)
-   f) Call renderWeather() with the data object
+  /* Trail lags behind for depth effect */
+  function animateTrail() {
+    trailX += (mouseX - trailX) * 0.12;
+    trailY += (mouseY - trailY) * 0.12;
+    cursorTrail.style.left = trailX + 'px';
+    cursorTrail.style.top  = trailY + 'px';
+    requestAnimationFrame(animateTrail);
+  }
+  animateTrail();
 
-   The JSON response looks like:
-   {
-     "name": "Mumbai",
-     "sys": { "country": "IN", "sunrise": 1720050000, "sunset": 1720096800 },
-     "main": { "temp": 31.2, "feels_like": 36, "humidity": 78, "pressure": 1008 },
-     "weather": [{ "id": 801, "description": "few clouds", "icon": "02d" }],
-     "wind": { "speed": 5.1, "deg": 240 },
-     "visibility": 8000
-   }
-   ================================================ */
+  /* Scale up on interactive elements */
+  document.querySelectorAll('button, a, input').forEach(el => {
+    el.addEventListener('mouseenter', () => {
+      cursor.style.width  = '20px';
+      cursor.style.height = '20px';
+      cursor.style.opacity = '0.6';
+    });
+    el.addEventListener('mouseleave', () => {
+      cursor.style.width  = '12px';
+      cursor.style.height = '12px';
+      cursor.style.opacity = '1';
+    });
+  });
+}
+
+/* ============================================
+   PARTICLE SYSTEM — canvas-based
+   Particles change based on weather condition
+   ============================================ */
+let particles = [];
+let particleType = 'stars'; /* stars | rain | snow | dust */
+let animFrameId;
+
+function initParticles() {
+  const canvas = document.getElementById('particle-canvas');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function spawnParticle() {
+    const types = {
+      stars: { x: Math.random() * canvas.width, y: Math.random() * canvas.height, vx: 0, vy: 0, size: Math.random() * 2 + 0.5, opacity: Math.random() * 0.8 + 0.2, twinkle: Math.random() * Math.PI * 2, life: 1 },
+      rain:  { x: Math.random() * canvas.width, y: -20, vx: -1.5, vy: Math.random() * 14 + 8, size: Math.random() * 1.5 + 0.5, opacity: Math.random() * 0.4 + 0.2, life: 1 },
+      snow:  { x: Math.random() * canvas.width, y: -10, vx: Math.random() * 2 - 1, vy: Math.random() * 2 + 0.8, size: Math.random() * 4 + 2, opacity: Math.random() * 0.7 + 0.3, wobble: Math.random() * Math.PI * 2, life: 1 },
+      dust:  { x: Math.random() * canvas.width, y: Math.random() * canvas.height, vx: Math.random() * 0.6 - 0.3, vy: -Math.random() * 0.4, size: Math.random() * 3 + 1, opacity: Math.random() * 0.3 + 0.1, life: 1 },
+    };
+    return types[particleType] || types.stars;
+  }
+
+  /* Init pool */
+  const counts = { stars: 120, rain: 180, snow: 100, dust: 80 };
+  particles = Array.from({ length: counts[particleType] || 120 }, spawnParticle);
+
+  /* Get particle color from CSS variable */
+  function getParticleColor(opacity) {
+    const style = getComputedStyle(document.documentElement);
+    const raw = style.getPropertyValue('--particle').trim() || '#bfdbfe';
+    /* Convert hex to rgba */
+    if (raw.startsWith('#')) {
+      const r = parseInt(raw.slice(1,3),16);
+      const g = parseInt(raw.slice(3,5),16);
+      const b = parseInt(raw.slice(5,7),16);
+      return `rgba(${r},${g},${b},${opacity})`;
+    }
+    return raw;
+  }
+
+  function drawParticle(p) {
+    ctx.save();
+    const color = getParticleColor(p.opacity);
+
+    if (particleType === 'stars') {
+      /* Twinkling stars */
+      const twinkleOpacity = p.opacity * (0.6 + 0.4 * Math.sin(p.twinkle));
+      ctx.fillStyle = getParticleColor(twinkleOpacity);
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+
+    } else if (particleType === 'rain') {
+      /* Rain streaks */
+      ctx.strokeStyle = color;
+      ctx.lineWidth = p.size;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x + p.vx * 3, p.y + p.vy * 3);
+      ctx.stroke();
+
+    } else if (particleType === 'snow') {
+      /* Snowflakes */
+      ctx.fillStyle = getParticleColor(p.opacity);
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+
+    } else if (particleType === 'dust') {
+      /* Floating dust motes */
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function updateParticle(p) {
+    if (particleType === 'stars') {
+      p.twinkle += 0.04;
+    } else if (particleType === 'rain') {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.y > canvas.height + 20) {
+        p.x = Math.random() * canvas.width;
+        p.y = -20;
+      }
+    } else if (particleType === 'snow') {
+      p.wobble += 0.03;
+      p.x += p.vx + Math.sin(p.wobble) * 0.5;
+      p.y += p.vy;
+      if (p.y > canvas.height + 20) {
+        p.x = Math.random() * canvas.width;
+        p.y = -10;
+      }
+    } else if (particleType === 'dust') {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.y < -10) p.y = canvas.height + 10;
+      if (p.x < -10) p.x = canvas.width + 10;
+      if (p.x > canvas.width + 10) p.x = -10;
+    }
+  }
+
+  function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => { drawParticle(p); updateParticle(p); });
+    animFrameId = requestAnimationFrame(loop);
+  }
+
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+  loop();
+}
+
+function setParticleType(condition, isDay) {
+  const prev = particleType;
+  if (condition === 'Rain' || condition === 'Drizzle') particleType = 'rain';
+  else if (condition === 'Snow')                       particleType = 'snow';
+  else if (['Mist','Fog','Haze','Smoke','Dust','Sand','Ash'].includes(condition)) particleType = 'dust';
+  else if (condition === 'Clear' && !isDay)            particleType = 'stars';
+  else                                                 particleType = 'stars';
+
+  if (prev !== particleType) {
+    const counts = { stars:120, rain:180, snow:100, dust:80 };
+    const canvas = document.getElementById('particle-canvas');
+    particles = Array.from({ length: counts[particleType] }, () => {
+      return { x: Math.random()*(canvas?.width||1920), y: Math.random()*(canvas?.height||1080),
+               vx: particleType==='rain'?-1.5:Math.random()*2-1,
+               vy: particleType==='rain'?Math.random()*14+8:Math.random()*2+0.8,
+               size: Math.random()*3+1, opacity: Math.random()*0.7+0.2,
+               twinkle: Math.random()*Math.PI*2, wobble: Math.random()*Math.PI*2 };
+    });
+  }
+}
+
+/* ============================================
+   WEATHER WORLD THEMES
+   ============================================ */
+function applyWorld(condition, isDay) {
+  const worlds = ['world-sunny','world-clear-night','world-rain','world-storm','world-snow','world-clouds','world-haze'];
+  document.body.classList.remove(...worlds);
+
+  const map = {
+    'Clear':        isDay ? 'world-sunny' : 'world-clear-night',
+    'Clouds':       'world-clouds',
+    'Rain':         'world-rain',
+    'Drizzle':      'world-rain',
+    'Thunderstorm': 'world-storm',
+    'Snow':         'world-snow',
+    'Mist':         'world-haze',
+    'Fog':          'world-haze',
+    'Haze':         'world-haze',
+    'Smoke':        'world-haze',
+    'Dust':         'world-haze',
+    'Sand':         'world-haze',
+    'Tornado':      'world-storm',
+  };
+
+  document.body.classList.add(map[condition] || 'world-clear-night');
+  setParticleType(condition, isDay);
+}
+
+/* ============================================
+   API — FETCH CURRENT WEATHER
+   ============================================ */
 async function fetchWeather(city) {
   showLoading();
   lastCity = city;
 
-  /* Build the API URL */
   const url = `${BASE_URL}/weather?q=${encodeURIComponent(city)}&appid=${API_KEY}&units=${currentUnit}`;
 
   try {
-    /* Step 1: Send the HTTP request */
-    const response = await fetch(url);
+    const res  = await fetch(url);
+    const data = await res.json();
 
-    /* Step 2: Convert response to a JS object */
-    const data = await response.json();
-
-    /* Step 3: Check for errors */
     if (data.cod !== 200) {
-      /* API returned an error — city not found or invalid key */
-      showError(
-        data.cod === 401
-          ? "Invalid API key. Please check your API key in script.js."
-          : "City not found. Please check the spelling and try again."
-      );
+      showError(data.cod === 401
+        ? '⚠️ Invalid API key — check script.js line 1'
+        : '🔍 City not found — try another spelling');
       return;
     }
 
-    /* Step 4: Cache data and render */
-    lastWeatherData = data;
+    lastData = data;
     renderWeather(data);
 
-  } catch (error) {
-    /* Network error — user is offline or API is down */
-    showError("Network error. Please check your internet connection and try again.");
-    console.error("Weather fetch error:", error);
+  } catch (err) {
+    showError('🌐 Network error — check your connection');
+    console.error(err);
+  } finally {
+    hideLoading();
   }
 }
 
-
-/* ==================================================
-   4. FETCH 5-DAY FORECAST
-   ================================================
-
-   The forecast API returns data every 3 hours for 5 days.
-   We group it by day and take the midday entry for each day.
-   ================================================ */
 async function fetchForecast(city) {
-  const loadingEl  = document.getElementById('forecastLoading');
-  const gridEl     = document.getElementById('forecastGrid');
-  const hourlyEl   = document.getElementById('hourlyRow');
-  const errorEl    = document.getElementById('forecastError');
-  const cityLabel  = document.getElementById('forecastCityLabel');
+  const loadEl  = document.getElementById('forecastLoading');
+  const gridEl  = document.getElementById('forecastGrid');
+  const hourEl  = document.getElementById('hourlyRow');
+  const labelEl = document.getElementById('forecastCityLabel');
+  const errEl   = document.getElementById('forecastError');
 
-  if (loadingEl) loadingEl.style.display = 'block';
-  if (gridEl)    gridEl.innerHTML = '';
-  if (errorEl)   errorEl.style.display = 'none';
+  if (loadEl)  { loadEl.style.display = 'block'; }
+  if (gridEl)  gridEl.innerHTML = '';
+  if (errEl)   errEl.style.display = 'none';
 
   const url = `${BASE_URL}/forecast?q=${encodeURIComponent(city)}&appid=${API_KEY}&units=${currentUnit}`;
 
   try {
-    const response = await fetch(url);
-    const data     = await response.json();
+    const res  = await fetch(url);
+    const data = await res.json();
 
-    if (data.cod !== "200") {
-      if (errorEl) {
-        errorEl.style.display = 'block';
-        errorEl.textContent = data.cod === 401
-          ? "Invalid API key."
-          : "City not found. Please search again.";
-      }
-      if (loadingEl) loadingEl.style.display = 'none';
+    if (data.cod !== '200') {
+      if (errEl) { errEl.style.display = 'block'; errEl.textContent = 'City not found or invalid API key.'; }
+      if (loadEl) loadEl.style.display = 'none';
       return;
     }
 
-    if (cityLabel) cityLabel.textContent = `${data.city.name}, ${data.city.country}`;
-    if (loadingEl) loadingEl.style.display = 'none';
+    if (labelEl) labelEl.textContent = `${data.city.name}, ${data.city.country}`;
+    if (loadEl)  loadEl.style.display = 'none';
 
-    /* Group 3-hourly entries by day date string */
-    const dailyMap = {};
-    data.list.forEach(entry => {
-      const dateStr = entry.dt_txt.split(" ")[0]; /* "2025-07-20" */
-      if (!dailyMap[dateStr]) dailyMap[dateStr] = [];
-      dailyMap[dateStr].push(entry);
+    /* Apply world theme from first entry */
+    const first = data.list[0];
+    applyWorld(first.weather[0].main, first.weather[0].icon.endsWith('d'));
+
+    /* Group by day */
+    const daily = {};
+    data.list.forEach(e => {
+      const d = e.dt_txt.split(' ')[0];
+      if (!daily[d]) daily[d] = [];
+      daily[d].push(e);
     });
 
-    /* Take the entry closest to midday (12:00) for each day */
-    const days = Object.entries(dailyMap).slice(0, 5);
-    renderForecastCards(days);
+    buildForecastCards(Object.entries(daily).slice(0,5));
+    if (hourEl) buildHourly(data.list.slice(0,8));
 
-    /* Hourly row — next 8 entries (24 hrs) */
-    if (hourlyEl) renderHourly(data.list.slice(0, 8));
-
-  } catch (error) {
-    if (errorEl) { errorEl.style.display = 'block'; errorEl.textContent = "Network error. Please check your connection."; }
-    if (loadingEl) loadingEl.style.display = 'none';
-    console.error("Forecast fetch error:", error);
+  } catch (err) {
+    if (errEl) { errEl.style.display = 'block'; errEl.textContent = 'Network error.'; }
+    if (loadEl) loadEl.style.display = 'none';
   }
 }
 
-
-/* ==================================================
-   5. RENDER CURRENT WEATHER TO DOM
-   Picks out data from the API response and injects
-   it into the HTML elements by their id.
-   ================================================ */
+/* ============================================
+   RENDER WEATHER
+   ============================================ */
 function renderWeather(data) {
-  hideLoading();
-
-  const unit    = currentUnit === "metric" ? "°C" : "°F";
-  const windUnit = currentUnit === "metric" ? "m/s" : "mph";
+  const unit     = currentUnit === 'metric' ? '°C' : '°F';
+  const windUnit = currentUnit === 'metric' ? 'm/s' : 'mph';
   const iconCode = data.weather[0].icon;
   const isDay    = iconCode.endsWith('d');
 
-  /* Set weather theme (changes background gradient) */
-  applyWeatherTheme(data.weather[0].main, isDay);
+  applyWorld(data.weather[0].main, isDay);
 
-  /* Helper: set inner text by element id */
-  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  const setHTML = (id, val) => { const el = document.getElementById(id); if (el) el.innerHTML = val; };
+  const set = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  const setH = (id, v) => { const el=document.getElementById(id); if(el) el.innerHTML=v; };
 
-  /* City + country */
   set('weatherCity',    data.name);
   set('weatherCountry', data.sys.country);
-
-  /* Temperature */
-  setHTML('weatherTemp', `${Math.round(data.main.temp)}<sup>${unit}</sup>`);
+  setH('weatherTemp',  `${Math.round(data.main.temp)}<sup>${unit}</sup>`);
   set('weatherDesc',   data.weather[0].description);
   set('weatherFeels',  `Feels like ${Math.round(data.main.feels_like)}${unit}`);
-
-  /* Weather emoji icon */
-  set('weatherIcon', getWeatherEmoji(data.weather[0].id, isDay));
-
-  /* Stats */
+  set('weatherIcon',   getEmoji(data.weather[0].id, isDay));
   set('weatherHumidity',   `${data.main.humidity}%`);
-  set('weatherWind',       `${data.wind.speed} ${windUnit}`);
-  set('weatherPressure',   `${data.main.pressure} hPa`);
-  set('weatherVisibility', data.visibility ? `${(data.visibility / 1000).toFixed(1)} km` : 'N/A');
+  set('weatherWind',        `${data.wind.speed} ${windUnit}`);
+  set('weatherPressure',    `${data.main.pressure} hPa`);
+  set('weatherVisibility',  data.visibility ? `${(data.visibility/1000).toFixed(1)} km` : 'N/A');
+  set('weatherSunrise',     fmtUnix(data.sys.sunrise));
+  set('weatherSunset',      fmtUnix(data.sys.sunset));
 
-  /* Sunrise & Sunset — convert Unix timestamp → local time */
-  set('weatherSunrise', formatUnixTime(data.sys.sunrise));
-  set('weatherSunset',  formatUnixTime(data.sys.sunset));
-
-  /* Show the result card */
-  const resultEl = document.getElementById('weatherResult');
-  if (resultEl) resultEl.classList.add('visible');
-
-  /* Hide no-search placeholder */
-  const noSearch = document.getElementById('noSearchState');
-  if (noSearch) noSearch.classList.remove('visible');
+  const panel = document.getElementById('resultPanel');
+  if (panel) panel.classList.add('visible');
 }
 
+/* ============================================
+   BUILD FORECAST CARDS
+   ============================================ */
+function buildForecastCards(days) {
+  const grid = document.getElementById('forecastGrid');
+  if (!grid) return;
 
-/* ==================================================
-   6. RENDER FORECAST CARDS
-   ================================================ */
-function renderForecastCards(days) {
-  const gridEl = document.getElementById('forecastGrid');
-  if (!gridEl) return;
+  const unit  = currentUnit === 'metric' ? '°C' : '°F';
+  const today = new Date().toDateString();
 
-  const unit     = currentUnit === "metric" ? "°C" : "°F";
-  const today    = new Date().toDateString();
-
-  gridEl.innerHTML = days.map(([dateStr, entries], index) => {
-    /* Pick midday entry, fallback to first */
-    const midday = entries.find(e => e.dt_txt.includes("12:00:00")) || entries[0];
-    const date   = new Date(dateStr + "T12:00:00");
-    const isToday = date.toDateString() === today;
-    const isDay  = true; /* forecasts default to day icon */
-
-    const minTemp = Math.round(Math.min(...entries.map(e => e.main.temp_min)));
-    const maxTemp = Math.round(Math.max(...entries.map(e => e.main.temp_max)));
+  grid.innerHTML = days.map(([dateStr, entries]) => {
+    const mid   = entries.find(e => e.dt_txt.includes('12:00:00')) || entries[0];
+    const date  = new Date(dateStr + 'T12:00:00');
+    const isT   = date.toDateString() === today;
+    const minT  = Math.round(Math.min(...entries.map(e => e.main.temp_min)));
+    const maxT  = Math.round(Math.max(...entries.map(e => e.main.temp_max)));
 
     return `
-      <div class="forecast-card glass${isToday ? ' today' : ''}">
-        <span class="forecast-day">${isToday ? 'Today' : date.toLocaleDateString('en-IN', { weekday: 'short' })}</span>
-        <span class="forecast-date">${date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
-        <span class="forecast-icon">${getWeatherEmoji(midday.weather[0].id, isDay)}</span>
-        <span class="forecast-temp">${maxTemp}${unit}</span>
-        <span class="forecast-low">↓ ${minTemp}${unit}</span>
-        <span class="forecast-desc">${midday.weather[0].description}</span>
-      </div>
-    `;
+      <div class="fc-card${isT ? ' today' : ''}">
+        <span class="fc-day">${isT ? 'Today' : date.toLocaleDateString('en-IN',{weekday:'short'})}</span>
+        <span class="fc-date">${date.toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span>
+        <span class="fc-icon">${getEmoji(mid.weather[0].id, true)}</span>
+        <span class="fc-max">${maxT}${unit}</span>
+        <span class="fc-min">↓ ${minT}${unit}</span>
+        <span class="fc-desc">${mid.weather[0].description}</span>
+      </div>`;
   }).join('');
 }
 
+function buildHourly(entries) {
+  const row = document.getElementById('hourlyRow');
+  if (!row) return;
+  const unit = currentUnit === 'metric' ? '°C' : '°F';
 
-/* Hourly strip */
-function renderHourly(entries) {
-  const el = document.getElementById('hourlyRow');
-  if (!el) return;
-
-  const unit = currentUnit === "metric" ? "°C" : "°F";
-
-  el.innerHTML = entries.map(entry => {
-    const time   = new Date(entry.dt * 1000);
-    const hour   = time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-    const isDay  = entry.weather[0].icon.endsWith('d');
+  row.innerHTML = entries.map(e => {
+    const t    = new Date(e.dt * 1000);
+    const time = t.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit',hour12:true});
     return `
-      <div class="hourly-card glass-2">
-        <span class="hourly-time">${hour}</span>
-        <span class="hourly-icon">${getWeatherEmoji(entry.weather[0].id, isDay)}</span>
-        <span class="hourly-temp">${Math.round(entry.main.temp)}${unit}</span>
-      </div>
-    `;
+      <div class="hr-card">
+        <span class="hr-time">${time}</span>
+        <span class="hr-icon">${getEmoji(e.weather[0].id, e.weather[0].icon.endsWith('d'))}</span>
+        <span class="hr-temp">${Math.round(e.main.temp)}${unit}</span>
+      </div>`;
   }).join('');
 }
 
-
-/* ==================================================
-   7. ERROR HANDLING
-   Shows a user-friendly message when city not found
-   or network fails.
-   ================================================ */
-function showError(message) {
-  const loadingEl = document.getElementById('loadingState');
-  const errorEl   = document.getElementById('errorState');
-  const resultEl  = document.getElementById('weatherResult');
-  const msgEl     = document.getElementById('errorMessage');
-
-  if (loadingEl) loadingEl.classList.remove('visible');
-  if (resultEl)  resultEl.classList.remove('visible');
-
-  if (msgEl)   msgEl.textContent = message;
-  if (errorEl) errorEl.classList.add('visible');
+/* ============================================
+   ERROR & LOADING
+   ============================================ */
+function showError(msg) {
+  hideLoading();
+  const toast = document.getElementById('errorToast');
+  if (!toast) return;
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  setTimeout(() => toast.classList.remove('visible'), 4000);
 }
 
-
-/* ==================================================
-   8. LOADING SPINNER
-   Shown while API request is in-flight.
-   ================================================ */
 function showLoading() {
-  const loadingEl = document.getElementById('loadingState');
-  const errorEl   = document.getElementById('errorState');
-  const resultEl  = document.getElementById('weatherResult');
-  const noSearch  = document.getElementById('noSearchState');
-
-  if (loadingEl) loadingEl.classList.add('visible');
-  if (errorEl)   errorEl.classList.remove('visible');
-  if (resultEl)  resultEl.classList.remove('visible');
-  if (noSearch)  noSearch.classList.remove('visible');
+  const ov = document.getElementById('loadingOverlay');
+  if (ov) ov.classList.add('visible');
 }
 
 function hideLoading() {
-  const loadingEl = document.getElementById('loadingState');
-  if (loadingEl) loadingEl.classList.remove('visible');
+  const ov = document.getElementById('loadingOverlay');
+  if (ov) ov.classList.remove('visible');
 }
 
-
-/* ==================================================
-   9. LIVE DATE & TIME DISPLAY
-   Updates every second using setInterval.
-   ================================================ */
-function initClock() {
-  function updateClock() {
-    const now  = new Date();
-    const date = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    const time = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-    const dateEl = document.getElementById('currentDate');
-    const timeEl = document.getElementById('currentTime');
-    if (dateEl) dateEl.textContent = date;
-    if (timeEl) timeEl.textContent = time;
-  }
-
-  updateClock();
-  setInterval(updateClock, 1000);
+/* ============================================
+   EMOJI MAP
+   ============================================ */
+function getEmoji(code, isDay=true) {
+  if (code >= 200 && code < 300) return '⛈️';
+  if (code >= 300 && code < 400) return '🌦️';
+  if (code >= 500 && code < 600) return code >= 502 ? '🌧️' : '🌦️';
+  if (code >= 600 && code < 700) return code === 611 ? '🌨️' : '❄️';
+  if (code >= 700 && code < 800) return '🌫️';
+  if (code === 800)  return isDay ? '☀️' : '🌙';
+  if (code === 801)  return isDay ? '🌤️' : '☁️';
+  if (code === 802)  return '⛅';
+  if (code >= 803)   return '☁️';
+  return '🌡️';
 }
 
-
-/* ==================================================
-   10. WEATHER BACKGROUND THEMES
-   Changes the CSS class on <body> based on condition.
-   The CSS variables shift the gradient accordingly.
-   ================================================ */
-function applyWeatherTheme(condition, isDay) {
-  /* Remove all existing weather classes */
-  document.body.classList.remove(
-    'weather-clear-day', 'weather-clear-night',
-    'weather-clouds', 'weather-rain',
-    'weather-thunderstorm', 'weather-snow', 'weather-haze'
-  );
-
-  /* Map API condition string to CSS class */
-  const themeMap = {
-    'Clear':        isDay ? 'weather-clear-day' : 'weather-clear-night',
-    'Clouds':       'weather-clouds',
-    'Rain':         'weather-rain',
-    'Drizzle':      'weather-rain',
-    'Thunderstorm': 'weather-thunderstorm',
-    'Snow':         'weather-snow',
-    'Mist':         'weather-haze',
-    'Fog':          'weather-haze',
-    'Haze':         'weather-haze',
-    'Smoke':        'weather-haze',
-    'Dust':         'weather-haze',
-    'Sand':         'weather-haze',
-    'Ash':          'weather-haze',
-    'Squall':       'weather-rain',
-    'Tornado':      'weather-thunderstorm'
-  };
-
-  const cls = themeMap[condition] || 'weather-clear-day';
-  document.body.classList.add(cls);
-}
-
-
-/* ==================================================
-   11. WEATHER EMOJI ICONS
-   Maps OpenWeather condition codes to emojis.
-   Full list: https://openweathermap.org/weather-conditions
-   ================================================ */
-function getWeatherEmoji(code, isDay = true) {
-  if (code >= 200 && code < 300) return '⛈️';   /* Thunderstorm */
-  if (code >= 300 && code < 400) return '🌦️';   /* Drizzle */
-  if (code >= 500 && code < 600) {
-    if (code === 511) return '🌨️';               /* Freezing rain */
-    return code >= 502 ? '🌧️' : '🌧️';           /* Heavy / Light rain */
-  }
-  if (code >= 600 && code < 700) return '❄️';   /* Snow */
-  if (code >= 700 && code < 800) return '🌫️';   /* Atmosphere (fog/haze) */
-  if (code === 800) return isDay ? '☀️' : '🌙'; /* Clear */
-  if (code === 801) return isDay ? '🌤️' : '☁️'; /* Few clouds */
-  if (code === 802) return '⛅';                 /* Scattered clouds */
-  if (code >= 803) return '☁️';                 /* Overcast */
-  return '🌡️';                                  /* Fallback */
-}
-
-
-/* ==================================================
-   12. GEOLOCATION — detect user's location
-   Uses the browser's built-in Geolocation API.
-   ================================================ */
+/* ============================================
+   GEOLOCATION
+   ============================================ */
 function getLocationWeather() {
-  if (!navigator.geolocation) {
-    alert("Geolocation is not supported by your browser.");
-    return;
-  }
-
+  if (!navigator.geolocation) { showError('Geolocation not supported by your browser.'); return; }
   showLoading();
 
   navigator.geolocation.getCurrentPosition(
-    async (position) => {
-      /* Got coordinates — fetch weather by lat/lon */
-      const { latitude, longitude } = position.coords;
-      const url = `${BASE_URL}/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=${currentUnit}`;
-
+    async ({ coords }) => {
+      const url = `${BASE_URL}/weather?lat=${coords.latitude}&lon=${coords.longitude}&appid=${API_KEY}&units=${currentUnit}`;
       try {
-        const response = await fetch(url);
-        const data     = await response.json();
-
-        if (data.cod !== 200) { showError("Could not fetch weather for your location."); return; }
-
+        const res  = await fetch(url);
+        const data = await res.json();
+        if (data.cod !== 200) { showError('Could not get weather for your location.'); return; }
         lastCity = data.name;
-        lastWeatherData = data;
+        lastData = data;
         renderWeather(data);
-
-        /* Update search input to show detected city */
-        const input = document.getElementById('searchInput');
-        if (input) input.value = data.name;
-
-      } catch (err) {
-        showError("Failed to fetch weather for your location. Please try again.");
-      }
+        const inp = document.getElementById('searchInput');
+        if (inp) inp.value = data.name;
+      } catch { showError('Network error fetching location weather.'); }
+      finally  { hideLoading(); }
     },
-    (error) => {
+    err => {
       hideLoading();
-      const msgs = {
-        1: "Location permission denied. Please allow location access.",
-        2: "Location unavailable. Try searching manually.",
-        3: "Location request timed out. Try searching manually."
-      };
-      showError(msgs[error.code] || "Could not determine your location.");
+      const m = { 1:'Location permission denied.', 2:'Location unavailable.', 3:'Location timeout.' };
+      showError(m[err.code] || 'Could not get your location.');
     }
   );
 }
 
-
-/* ==================================================
-   13. °C / °F UNIT TOGGLE
-   Converts the displayed temperature without re-fetching.
-   ================================================ */
+/* ============================================
+   UNIT TOGGLE
+   ============================================ */
 function toggleUnit(unit) {
   if (unit === currentUnit) return;
   currentUnit = unit;
 
-  /* Update active button state */
-  document.querySelectorAll('.unit-btn').forEach(btn => {
+  document.querySelectorAll('.unit-opt').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.unit === unit);
   });
 
-  /* Re-fetch with new unit if we have a city */
-  if (lastCity) {
-    fetchWeather(lastCity);
-  }
+  if (lastCity) fetchWeather(lastCity);
 }
 
-
-/* ==================================================
-   14. SEARCH HANDLER
-   Called by the Search button and Enter key.
-   ================================================ */
+/* ============================================
+   SEARCH
+   ============================================ */
 function handleSearch(inputId = 'searchInput') {
-  const input = document.getElementById(inputId);
-  if (!input) return;
-
-  const city = input.value.trim();
-  if (!city) {
-    input.focus();
-    input.style.borderColor = 'rgba(255,100,100,0.7)';
-    setTimeout(() => input.style.borderColor = '', 1500);
-    return;
-  }
-
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  const city = inp.value.trim();
+  if (!city) { inp.focus(); return; }
   fetchWeather(city);
 }
 
+function handleForecastSearch() {
+  const inp = document.getElementById('forecastSearchInput');
+  if (!inp) return;
+  const city = inp.value.trim();
+  if (city) fetchForecast(city);
+}
 
-/* ==================================================
-   HELPER: Format Unix timestamp → "HH:MM AM/PM"
-   ================================================ */
-function formatUnixTime(unix) {
-  return new Date(unix * 1000).toLocaleTimeString('en-IN', {
-    hour: '2-digit', minute: '2-digit', hour12: true
+/* ============================================
+   LIVE CLOCK
+   ============================================ */
+function initClock() {
+  function tick() {
+    const now  = new Date();
+    const date = now.toLocaleDateString('en-IN', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    const time = now.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+
+    const dEl = document.getElementById('currentDate');
+    const tEl = document.getElementById('currentTime');
+    if (dEl) dEl.textContent = date;
+    if (tEl) tEl.textContent = time;
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+/* ============================================
+   KEYBOARD SHORTCUTS
+   ============================================ */
+function initKeyboard() {
+  ['searchInput','forecastSearchInput'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      id === 'forecastSearchInput' ? handleForecastSearch() : handleSearch(id);
+    });
   });
 }
 
-
-/* ==================================================
+/* ============================================
    MOBILE MENU
-   ================================================ */
+   ============================================ */
 function toggleMenu() {
   document.getElementById('hamburger')?.classList.toggle('open');
   document.getElementById('mobileMenu')?.classList.toggle('open');
 }
 
-
-/* ==================================================
-   KEYBOARD SHORTCUT — Enter to search
-   ================================================ */
-function initKeyboard() {
-  ['searchInput', 'forecastSearchInput'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        id === 'forecastSearchInput' ? handleForecastSearch() : handleSearch(id);
-      }
-    });
-  });
+/* ============================================
+   HELPER — format unix timestamp
+   ============================================ */
+function fmtUnix(ts) {
+  return new Date(ts * 1000).toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit',hour12:true});
 }
 
-
-/* Forecast page search */
-function handleForecastSearch() {
-  const input = document.getElementById('forecastSearchInput');
-  if (!input) return;
-  const city = input.value.trim();
-  if (city) fetchForecast(city);
-}
-
-
-/* ==================================================
-   INIT — run on every page load
-   ================================================ */
+/* ============================================
+   INIT
+   ============================================ */
 document.addEventListener('DOMContentLoaded', () => {
-  initClock();       /* Start live clock */
-  initKeyboard();    /* Attach keyboard shortcuts */
+  initCursor();
+  initParticles();
+  initClock();
+  initKeyboard();
 
-  /* Auto-detect if we're on forecast.html */
+  /* Auto-load forecast page */
   if (document.getElementById('forecastGrid')) {
-    /* Default to a popular city on forecast page */
-    fetchForecast("Mumbai");
+    fetchForecast('Mumbai');
   }
-
-  /* Show the no-search placeholder on home page */
-  const noSearch = document.getElementById('noSearchState');
-  if (noSearch) noSearch.classList.add('visible');
 });
