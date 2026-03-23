@@ -1,194 +1,216 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="SkyCast — Real-time weather forecast for any city in the world." />
-  <title>SkyCast — Weather App</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Atmosfera — An immersive 3D weather experience"/>
+  <title>Atmosfera — Weather</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Syne+Mono&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="css/style.css"/>
 </head>
 <body>
 
+  <!-- Custom cursor -->
+  <div class="cursor" id="cursor"></div>
+  <div class="cursor-trail" id="cursorTrail"></div>
+
+  <!-- Animated background -->
+  <div class="bg-world">
+    <div class="bg-layer bg-layer-1"></div>
+    <div class="bg-layer bg-layer-2"></div>
+  </div>
+  <div class="bg-noise"></div>
+
+  <!-- Particle canvas -->
+  <canvas id="particle-canvas"></canvas>
+
+  <!-- 3D floating orb -->
+  <div class="scene-3d">
+    <div class="orb-3d">
+      <div class="orb-ring"></div>
+      <div class="orb-ring orb-ring-2"></div>
+      <div class="orb-sphere"></div>
+      <div class="orb-shadow"></div>
+    </div>
+  </div>
+
   <!-- ===================== NAVBAR ===================== -->
   <nav class="navbar">
-    <div class="container-wide">
-      <div class="nav-inner">
-        <a href="index.html" class="nav-logo">
-          <span class="nav-logo-icon">🌤️</span> SkyCast
-        </a>
-        <ul class="nav-links">
-          <li><a href="index.html" class="active">Home</a></li>
-          <li><a href="forecast.html">Forecast</a></li>
-          <li><a href="about.html">About</a></li>
-        </ul>
-        <div class="hamburger" id="hamburger" onclick="toggleMenu()">
-          <span></span><span></span><span></span>
-        </div>
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <div class="nav-logo-dot"></div>
+        Atmosfera
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html" class="active">Home</a></li>
+        <li><a href="forecast.html">Forecast</a></li>
+        <li><a href="about.html">About</a></li>
+      </ul>
+      <div class="hamburger" id="hamburger" onclick="toggleMenu()">
+        <span></span><span></span><span></span>
       </div>
     </div>
   </nav>
-
-  <!-- Mobile Menu -->
   <div class="mobile-menu" id="mobileMenu">
     <a href="index.html" class="active" onclick="toggleMenu()">Home</a>
     <a href="forecast.html" onclick="toggleMenu()">Forecast</a>
     <a href="about.html" onclick="toggleMenu()">About</a>
   </div>
 
-  <!-- ===================== MAIN ===================== -->
-  <main>
-    <div class="container">
+  <!-- Loading overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loader-ring"></div>
+    <p class="loader-text">FETCHING WEATHER DATA</p>
+  </div>
 
-      <!-- Hero -->
-      <header class="hero">
-        <div class="hero-eyebrow">
-          <i class="fas fa-satellite-dish"></i> Live Weather Data
-        </div>
-        <h1>What's the weather<br />like out there?</h1>
-        <p>Search any city for real-time weather conditions, humidity, wind speed, and more.</p>
+  <!-- Error toast -->
+  <div class="error-toast" id="errorToast"></div>
 
-        <!-- Live Date & Time -->
-        <div class="datetime-display">
-          <i class="fas fa-clock" style="opacity:0.5;font-size:0.8rem;"></i>
-          <span id="currentDate">—</span>
-          <span class="sep">|</span>
-          <span class="time" id="currentTime">—</span>
-        </div>
+  <!-- ===================== MAIN PAGE ===================== -->
+  <div class="page-wrapper">
+    <main class="hero">
+      <div class="container">
+        <div class="hero-left">
 
-        <!-- Search Bar -->
-        <div class="search-bar">
-          <input
-            type="text"
-            id="searchInput"
-            class="search-input"
-            placeholder="Enter city name... e.g. Mumbai, London, Tokyo"
-            aria-label="Search city"
-          />
-          <button class="btn-search" onclick="handleSearch('searchInput')">
-            <i class="fas fa-magnifying-glass"></i> Search
-          </button>
-          <!-- Geolocation button -->
-          <button class="btn-geo glass" onclick="getLocationWeather()" title="Use my location" aria-label="Detect my location">
-            <i class="fas fa-location-crosshairs"></i>
-          </button>
-        </div>
+          <!-- Status -->
+          <div class="status-chip">
+            <div class="status-dot"></div>
+            LIVE WEATHER DATA
+          </div>
 
-        <!-- °C / °F Toggle -->
-        <div class="unit-toggle">
-          <button class="unit-btn active" data-unit="metric" onclick="toggleUnit('metric')">°C</button>
-          <button class="unit-btn" data-unit="imperial" onclick="toggleUnit('imperial')">°F</button>
-        </div>
-      </header>
+          <!-- Headline -->
+          <h1 class="hero-headline">
+            Feel the
+            <span class="line-2">Weather.</span>
+            <span class="line-3">Real-time conditions for any city on Earth.</span>
+          </h1>
 
-      <!-- No Search Placeholder -->
-      <div class="no-search-state" id="noSearchState">
-        <div class="no-search-icon">🌍</div>
-        <h3>Search for a city to get started</h3>
-        <p>Type any city name above or click the location icon to use your current location.</p>
-      </div>
+          <!-- Clock -->
+          <div class="datetime-pill">
+            <i class="fas fa-clock" style="opacity:0.4; font-size:0.75rem;"></i>
+            <span id="currentDate">—</span>
+            <span style="opacity:0.3;">·</span>
+            <span class="time-val" id="currentTime">—</span>
+          </div>
 
-      <!-- Loading Spinner -->
-      <div class="loading-state" id="loadingState">
-        <div class="spinner"></div>
-        <p>Fetching weather data...</p>
-      </div>
-
-      <!-- Error State -->
-      <div class="error-state glass" id="errorState">
-        <div class="error-icon">🌧️</div>
-        <h3>Oops! Something went wrong</h3>
-        <p id="errorMessage">City not found. Please enter a valid city name.</p>
-      </div>
-
-      <!-- ===================== WEATHER RESULT ===================== -->
-      <section class="weather-result" id="weatherResult" aria-live="polite">
-
-        <!-- Main Weather Card -->
-        <article class="weather-main-card glass">
-          <!-- Big emoji icon (animated float via CSS) -->
-          <span class="weather-icon-large" id="weatherIcon">☀️</span>
-
-          <!-- City name -->
-          <div class="weather-city" id="weatherCity">—</div>
-          <div class="weather-country" id="weatherCountry">—</div>
-
-          <!-- Temperature -->
-          <div class="weather-temp" id="weatherTemp">—</div>
-          <div class="weather-desc" id="weatherDesc">—</div>
-          <div class="weather-feels" id="weatherFeels">—</div>
-
-          <!-- Stats Grid: humidity, wind, pressure, visibility -->
-          <div class="weather-stats">
-            <div class="weather-stat">
-              <span class="weather-stat-icon">💧</span>
-              <span class="weather-stat-val" id="weatherHumidity">—</span>
-              <span class="weather-stat-label">Humidity</span>
-            </div>
-            <div class="weather-stat">
-              <span class="weather-stat-icon">💨</span>
-              <span class="weather-stat-val" id="weatherWind">—</span>
-              <span class="weather-stat-label">Wind Speed</span>
-            </div>
-            <div class="weather-stat">
-              <span class="weather-stat-icon">🔽</span>
-              <span class="weather-stat-val" id="weatherPressure">—</span>
-              <span class="weather-stat-label">Pressure</span>
-            </div>
-            <div class="weather-stat">
-              <span class="weather-stat-icon">👁️</span>
-              <span class="weather-stat-val" id="weatherVisibility">—</span>
-              <span class="weather-stat-label">Visibility</span>
+          <!-- Search -->
+          <div class="search-wrap">
+            <div class="search-box">
+              <div class="search-icon">
+                <i class="fas fa-magnifying-glass"></i>
+              </div>
+              <input
+                type="text"
+                id="searchInput"
+                class="search-input"
+                placeholder="Mumbai, London, Tokyo..."
+                aria-label="Search city"
+              />
+              <button class="search-btn" onclick="handleSearch('searchInput')">
+                <i class="fas fa-bolt"></i> Search
+              </button>
             </div>
           </div>
-        </article>
 
-        <!-- Sunrise / Sunset Row -->
+          <!-- Controls -->
+          <div class="controls-row">
+            <button class="ctrl-btn" onclick="getLocationWeather()">
+              <i class="fas fa-location-crosshairs"></i> My Location
+            </button>
+            <div class="unit-pill">
+              <button class="unit-opt active" data-unit="metric"   onclick="toggleUnit('metric')">°C</button>
+              <button class="unit-opt"         data-unit="imperial" onclick="toggleUnit('imperial')">°F</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+
+    <!-- ===================== WEATHER RESULT PANEL ===================== -->
+    <aside class="result-panel" id="resultPanel" aria-live="polite">
+
+      <!-- Main hero card -->
+      <div class="panel-card">
+        <div class="panel-hero">
+          <span class="panel-weather-icon" id="weatherIcon">☁️</span>
+          <div class="panel-city"    id="weatherCity">—</div>
+          <div class="panel-country" id="weatherCountry">—</div>
+          <div class="panel-temp"    id="weatherTemp">—</div>
+          <div class="panel-desc"    id="weatherDesc">—</div>
+          <div class="panel-feels"   id="weatherFeels">—</div>
+        </div>
+
+        <!-- Stats 2x2 grid -->
+        <div class="panel-stats">
+          <div class="stat-cell">
+            <span class="stat-emoji">💧</span>
+            <div class="stat-info">
+              <span class="stat-val"   id="weatherHumidity">—</span>
+              <span class="stat-label">Humidity</span>
+            </div>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-emoji">💨</span>
+            <div class="stat-info">
+              <span class="stat-val"   id="weatherWind">—</span>
+              <span class="stat-label">Wind</span>
+            </div>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-emoji">🌡️</span>
+            <div class="stat-info">
+              <span class="stat-val"   id="weatherPressure">—</span>
+              <span class="stat-label">Pressure</span>
+            </div>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-emoji">👁️</span>
+            <div class="stat-info">
+              <span class="stat-val"   id="weatherVisibility">—</span>
+              <span class="stat-label">Visibility</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sunrise / Sunset -->
         <div class="sun-row">
-          <div class="sun-card glass">
-            <span class="sun-icon">🌅</span>
+          <div class="sun-cell">
+            <span class="sun-ico">🌅</span>
             <div>
-              <span class="sun-label">Sunrise</span>
+              <span class="sun-lbl">Sunrise</span>
               <span class="sun-val" id="weatherSunrise">—</span>
             </div>
           </div>
-          <div class="sun-card glass">
-            <span class="sun-icon">🌇</span>
+          <div class="sun-cell">
+            <span class="sun-ico">🌇</span>
             <div>
-              <span class="sun-label">Sunset</span>
+              <span class="sun-lbl">Sunset</span>
               <span class="sun-val" id="weatherSunset">—</span>
             </div>
           </div>
         </div>
-
-        <!-- Link to full forecast -->
-        <div style="text-align:center; margin-top:20px;">
-          <a href="forecast.html" class="btn-search" style="display:inline-flex; text-decoration:none;">
-            <i class="fas fa-calendar-week"></i> View 5-Day Forecast
-          </a>
-        </div>
-
-      </section>
-
-    </div>
-  </main>
-
-  <!-- FOOTER -->
-  <footer>
-    <div class="container-wide">
-      <div class="footer-inner">
-        <p>🌤️ SkyCast — Powered by OpenWeatherMap API</p>
-        <div class="footer-links">
-          <a href="index.html">Home</a>
-          <a href="forecast.html">Forecast</a>
-          <a href="about.html">About</a>
-        </div>
       </div>
-    </div>
-  </footer>
+
+      <!-- Forecast CTA -->
+      <a href="forecast.html" class="forecast-link-btn">
+        <i class="fas fa-calendar-week"></i> View 5-Day Forecast
+      </a>
+
+    </aside>
+
+    <footer>
+      <p>ATMOSFERA © 2025 — Powered by OpenWeatherMap</p>
+      <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="forecast.html">Forecast</a>
+        <a href="about.html">About</a>
+      </div>
+    </footer>
+  </div>
 
   <script src="js/script.js"></script>
 </body>
