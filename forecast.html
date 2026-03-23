@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>5-Day Forecast — SkyCast</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container-wide"><div class="nav-inner">
+      <a href="index.html" class="nav-logo"><span class="nav-logo-icon">🌤️</span> SkyCast</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="forecast.html" class="active">Forecast</a></li>
+        <li><a href="about.html">About</a></li>
+      </ul>
+      <div class="hamburger" id="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+    </div></div>
+  </nav>
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="index.html" onclick="toggleMenu()">Home</a>
+    <a href="forecast.html" class="active" onclick="toggleMenu()">Forecast</a>
+    <a href="about.html" onclick="toggleMenu()">About</a>
+  </div>
+
+  <main>
+    <div class="container">
+
+      <!-- Page Header -->
+      <header class="page-header">
+        <h1>5-Day Forecast</h1>
+        <p>Extended weather outlook. Showing forecast for <strong id="forecastCityLabel">Mumbai, IN</strong></p>
+        <nav class="breadcrumb">
+          <a href="index.html">Home</a>
+          <span>/</span>
+          <span>Forecast</span>
+        </nav>
+      </header>
+
+      <!-- Search -->
+      <div class="forecast-search">
+        <input
+          type="text"
+          id="forecastSearchInput"
+          class="search-input"
+          placeholder="Search another city..."
+          aria-label="Search city for forecast"
+        />
+        <button class="btn-search" onclick="handleForecastSearch()">
+          <i class="fas fa-magnifying-glass"></i> Search
+        </button>
+      </div>
+
+      <!-- °C / °F Toggle -->
+      <div style="text-align:center; margin-bottom:32px;">
+        <div class="unit-toggle" style="display:inline-flex;">
+          <button class="unit-btn active" data-unit="metric" onclick="toggleUnit('metric')">°C</button>
+          <button class="unit-btn" data-unit="imperial" onclick="toggleUnit('imperial')">°F</button>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div id="forecastLoading" style="text-align:center; padding:48px 0; display:none;">
+        <div class="spinner"></div>
+        <p style="margin-top:16px; color:var(--text-muted);">Fetching forecast data...</p>
+      </div>
+
+      <!-- Error -->
+      <p id="forecastError" style="text-align:center; color:rgba(255,100,100,0.9); display:none; padding:24px;"></p>
+
+      <!-- 5-Day Forecast Grid — JS fills this -->
+      <section class="forecast-section" aria-label="5-day weather forecast">
+        <div class="forecast-grid" id="forecastGrid">
+          <!-- Cards injected by renderForecastCards() in script.js -->
+        </div>
+
+        <!-- Hourly Row -->
+        <p class="hourly-section-title" style="margin-top:32px;">Next 24 Hours</p>
+        <div class="hourly-row" id="hourlyRow">
+          <!-- Hourly cards injected by renderHourly() in script.js -->
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer>
+    <div class="container-wide">
+      <div class="footer-inner">
+        <p>🌤️ SkyCast — Powered by OpenWeatherMap API</p>
+        <div class="footer-links">
+          <a href="index.html">Home</a><a href="forecast.html">Forecast</a><a href="about.html">About</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+  <script src="js/script.js"></script>
+</body>
+</html>

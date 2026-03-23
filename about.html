@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About — SkyCast</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container-wide"><div class="nav-inner">
+      <a href="index.html" class="nav-logo"><span class="nav-logo-icon">🌤️</span> SkyCast</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="forecast.html">Forecast</a></li>
+        <li><a href="about.html" class="active">About</a></li>
+      </ul>
+      <div class="hamburger" id="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+    </div></div>
+  </nav>
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="index.html" onclick="toggleMenu()">Home</a>
+    <a href="forecast.html" onclick="toggleMenu()">Forecast</a>
+    <a href="about.html" class="active" onclick="toggleMenu()">About</a>
+  </div>
+
+  <main>
+    <div class="container">
+
+      <header class="page-header">
+        <h1>About SkyCast</h1>
+        <p>A real-time weather application built with HTML, CSS, and JavaScript using the OpenWeatherMap API.</p>
+        <nav class="breadcrumb">
+          <a href="index.html">Home</a><span>/</span><span>About</span>
+        </nav>
+      </header>
+
+      <!-- What is SkyCast -->
+      <article class="about-card glass">
+        <h2>🌤️ What is SkyCast?</h2>
+        <p>SkyCast is a browser-based weather application that fetches real-time weather data from the OpenWeatherMap API. Users can search any city in the world to get current conditions — temperature, humidity, wind speed, pressure, visibility, sunrise, and sunset times.</p>
+        <p>The app also features a 5-day forecast with an hourly breakdown, automatic background themes that change based on weather conditions, geolocation detection, and a °C/°F toggle — all built with vanilla JavaScript and no frameworks.</p>
+      </article>
+
+      <!-- How the API works -->
+      <article class="about-card glass">
+        <h2>⚡ How Weather Data is Fetched from an API</h2>
+        <p>This application uses the <strong>OpenWeatherMap REST API</strong> to retrieve live weather data. Here's exactly how the process works step by step:</p>
+
+        <!-- Visual API flow -->
+        <div class="api-flow">
+          <div class="flow-step">
+            <span class="flow-step-icon">👤</span>
+            <span class="flow-step-label">User types city</span>
+          </div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-step">
+            <span class="flow-step-icon">⚡</span>
+            <span class="flow-step-label">JS calls fetch()</span>
+          </div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-step">
+            <span class="flow-step-icon">🌐</span>
+            <span class="flow-step-label">HTTP request sent</span>
+          </div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-step">
+            <span class="flow-step-icon">📡</span>
+            <span class="flow-step-label">API server responds</span>
+          </div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-step">
+            <span class="flow-step-icon">📦</span>
+            <span class="flow-step-label">JSON parsed by JS</span>
+          </div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-step">
+            <span class="flow-step-icon">🖥️</span>
+            <span class="flow-step-label">Data shown on screen</span>
+          </div>
+        </div>
+
+        <p>The JavaScript code uses <code style="background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-family:monospace;">async/await</code> to make HTTP requests. The <code style="background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-family:monospace;">fetch()</code> function is built into modern browsers and returns a Promise. The API sends back a JSON object which is then parsed and rendered into the page HTML dynamically using DOM manipulation.</p>
+
+        <!-- Code example -->
+        <div style="background:rgba(0,0,0,0.25);border-radius:12px;padding:20px;margin-top:16px;font-family:monospace;font-size:0.82rem;line-height:1.7;overflow-x:auto;">
+          <span style="color:rgba(255,255,255,0.4);">// How the API call works in script.js</span><br/>
+          <span style="color:#93c5fd;">async function</span> <span style="color:#fde68a;">fetchWeather</span>(city) {<br/>
+          &nbsp;&nbsp;<span style="color:#86efac;">const</span> url = <span style="color:#fca5a5;">`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API_KEY}`</span>;<br/>
+          &nbsp;&nbsp;<span style="color:#86efac;">const</span> response = <span style="color:#93c5fd;">await</span> fetch(url);&nbsp;&nbsp;<span style="color:rgba(255,255,255,0.4);">// send request</span><br/>
+          &nbsp;&nbsp;<span style="color:#86efac;">const</span> data = <span style="color:#93c5fd;">await</span> response.json();&nbsp;<span style="color:rgba(255,255,255,0.4);">// parse JSON</span><br/>
+          &nbsp;&nbsp;renderWeather(data);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:rgba(255,255,255,0.4);">// show on page</span><br/>
+          }
+        </div>
+      </article>
+
+      <!-- Features -->
+      <article class="about-card glass">
+        <h2>🚀 Features</h2>
+        <div class="tech-list">
+          <div class="tech-item">
+            <span class="tech-item-icon">🔍</span>
+            <div>
+              <span class="tech-item-name">City Search</span>
+              <span class="tech-item-desc">Search any city in the world for real-time weather conditions.</span>
+            </div>
+          </div>
+          <div class="tech-item">
+            <span class="tech-item-icon">📅</span>
+            <div>
+              <span class="tech-item-name">5-Day Forecast</span>
+              <span class="tech-item-desc">Extended forecast with daily high/low temperatures and conditions, plus an hourly strip.</span>
+            </div>
+          </div>
+          <div class="tech-item">
+            <span class="tech-item-icon">📍</span>
+            <div>
+              <span class="tech-item-name">Geolocation</span>
+              <span class="tech-item-desc">Detect your current location automatically using the browser's Geolocation API.</span>
+            </div>
+          </div>
+          <div class="tech-item">
+            <span class="tech-item-icon">🎨</span>
+            <div>
+              <span class="tech-item-name">Dynamic Backgrounds</span>
+              <span class="tech-item-desc">The app's gradient background changes based on the weather — sunny, rainy, stormy, snowy, and more.</span>
+            </div>
+          </div>
+          <div class="tech-item">
+            <span class="tech-item-icon">🌡️</span>
+            <div>
+              <span class="tech-item-name">°C / °F Toggle</span>
+              <span class="tech-item-desc">Switch between Celsius and Fahrenheit with one click. The data re-fetches with the correct unit.</span>
+            </div>
+          </div>
+          <div class="tech-item">
+            <span class="tech-item-icon">⚠️</span>
+            <div>
+              <span class="tech-item-name">Error Handling</span>
+              <span class="tech-item-desc">Invalid city names and network failures show user-friendly error messages with guidance to try again.</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Tech stack -->
+      <article class="about-card glass">
+        <h2>🛠️ Technology Used</h2>
+        <div class="tech-list">
+          <div class="tech-item">
+            <span class="tech-item-icon">🌐</span>
+            <div>
+              <span class="tech-item-name">HTML5</span>
+              <span class="tech-item-desc">Semantic structure with header, nav, main, section, article, and footer elements. ARIA labels for accessibility.</span>
+            </div>
+          </div>
+          <div class="tech-item">
+            <span class="tech-item-icon">🎨</span>
+            <div>
+              <span class="tech-item-name">CSS3</span>
+              <span class="tech-item-desc">CSS Variables, glassmorphism effects with backdrop-filter, dynamic gradient themes, Flexbox/Grid layout, and responsive media queries.</span>
+            </div>
+          </div>
+          <div class="tech-item">
+            <span class="tech-item-icon">⚡</span>
+            <div>
+              <span class="tech-item-name">JavaScript (ES6+)</span>
+              <span class="tech-item-desc">async/await with fetch(), DOM manipulation, Geolocation API, error handling, and live clock using setInterval.</span>
+            </div>
+          </div>
+          <div class="tech-item">
+            <span class="tech-item-icon">📡</span>
+            <div>
+              <span class="tech-item-name">OpenWeatherMap API</span>
+              <span class="tech-item-desc">Free REST API providing current weather and 5-day forecast data for any city. Returns data in JSON format.</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <div style="text-align:center; padding:16px 0 32px;">
+        <a href="index.html" class="btn-search" style="display:inline-flex; text-decoration:none;">
+          <i class="fas fa-arrow-left"></i> Back to Weather Search
+        </a>
+      </div>
+
+    </div>
+  </main>
+
+  <footer>
+    <div class="container-wide">
+      <div class="footer-inner">
+        <p>🌤️ SkyCast — Powered by OpenWeatherMap API</p>
+        <div class="footer-links">
+          <a href="index.html">Home</a><a href="forecast.html">Forecast</a><a href="about.html">About</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+  <script src="js/script.js"></script>
+</body>
+</html>
